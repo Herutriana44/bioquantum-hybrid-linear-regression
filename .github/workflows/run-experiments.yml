@@ -1,0 +1,52 @@
+name: Run experiments and upload results
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "run_experiments.py"
+      - "requirements.txt"
+      - ".github/workflows/run-experiments.yml"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run experiments
+        run: |
+          python run_experiments.py
+
+      - name: Zip results
+        run: |
+          python - <<'PY'
+          import shutil
+          from pathlib import Path
+          p = Path("results")
+          if not p.exists():
+            raise SystemExit("results/ not found (script did not run?)")
+          shutil.make_archive("results", "zip", root_dir="results")
+          print("Created results.zip")
+          PY
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: results.zip
+          if-no-files-found: error
+
